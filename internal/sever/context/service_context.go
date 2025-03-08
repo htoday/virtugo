@@ -50,7 +50,7 @@ func (s *ServiceContext) InitServiceContext() {
 		AppendLambda(loadMomeryLamda).
 		AppendChatTemplate(prompt.FromMessages(schema.FString,
 			// 系统消息模板
-			schema.SystemMessage("1.你的回答应该尽量简短。2.积极地自主使用记忆存储工具。3.发言尽量贴近角色的设定"),
+			schema.SystemMessage("1.你的回答应该尽量简短。2.积极地自主使用记忆存储工具同时不轻易储存已经在记忆里的内容。3.发言尽量贴近角色的设定"),
 			schema.SystemMessage("长期记忆:{long_term_memory}"),
 			// 插入需要的对话历史（新对话的话这里不填）
 			schema.MessagesPlaceholder("chat_history", true),
