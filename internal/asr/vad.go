@@ -1,13 +1,17 @@
 package asr
 
 import (
+	"fmt"
 	sherpa "github.com/k2-fsa/sherpa-onnx-go/sherpa_onnx"
+	"path/filepath"
+	config2 "virtugo/internal/config"
 )
 
 func InitVad() sherpa.VadModelConfig {
 	// 1. Create VAD
 	//vadUrl := filepath.Join(config.Cwd, "asrModel", "tokens.txt")
-	vadUrl := "./asrModel/silero_vad.onnx"
+	vadUrl := filepath.Join(config2.ModelDirRoot, "asrModel", "silero_vad.onnx")
+	fmt.Println("vadUrl是", vadUrl)
 	config := sherpa.VadModelConfig{}
 	config.SileroVad.Model = vadUrl
 	config.SileroVad.Threshold = 0.5

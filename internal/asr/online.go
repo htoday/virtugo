@@ -2,9 +2,14 @@ package asr
 
 import (
 	sherpa "github.com/k2-fsa/sherpa-onnx-go/sherpa_onnx"
+	"path/filepath"
+	"virtugo/internal/config"
 )
 
 func InitOfflineASR() *sherpa.OfflineRecognizer {
+	var modelUrl = filepath.Join(config.ModelDirRoot, "asrModel", "model.int8.onnx")
+	var tokenUrl = filepath.Join(config.ModelDirRoot, "asrModel", "tokens.txt")
+
 	c := sherpa.OfflineRecognizerConfig{}
 	c.FeatConfig.SampleRate = 16000
 	c.FeatConfig.FeatureDim = 80

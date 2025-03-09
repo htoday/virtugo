@@ -14,8 +14,9 @@ type Config struct {
 	} `mapstructure:"openai_api_key"`
 }
 
-var Cwd string
+var ModelDirRoot string
 var Cfg Config
+var Cwd string
 
 // LoadConfig 读取 config.yaml，并自动设置环境变量
 func LoadConfig() {

@@ -21,15 +21,17 @@ func main() {
 	// 获取 main.exe 所在目录
 	exeDir := filepath.Dir(exePath)
 	// 处理 GoLand 临时编译路径问题
-	if strings.Contains(exeDir, "JetBrains/GoLand") {
+	if strings.Contains(exePath, "__go_build") {
 		// 如果是 GoLand 临时编译环境，使用当前工作目录
 		workDir, _ := os.Getwd()
 		exeDir = workDir
+		config.ModelDirRoot = "./"
+	} else {
+		config.ModelDirRoot = exeDir
 	}
 
 	// 计算 asrModel/model 目录
 	modelPath := filepath.Join(exeDir, "asrModel", "model.int8.onnx")
-
 	fmt.Println("可执行文件目录:", exeDir)
 	fmt.Println("模型路径:", modelPath)
 

@@ -4,13 +4,16 @@ import (
 	sherpa "github.com/k2-fsa/sherpa-onnx-go/sherpa_onnx"
 	flag "github.com/spf13/pflag"
 	"log"
+	"path/filepath"
+	"virtugo/internal/config"
 )
 
 var AscRec *sherpa.OnlineRecognizer
-var modelUrl = "./asrModel/model.int8.onnx"
-var tokenUrl = "./asrModel/tokens.txt"
 
 func InitOnlineAsr() {
+	var modelUrl = filepath.Join(config.ModelDirRoot, "asrModel", "model.int8.onnx")
+	//var tokenUrl = filepath.Join(config.ModelDirRoot, "asrModel", "tokens.txt")
+
 	config := sherpa.OnlineRecognizerConfig{}
 	config.FeatConfig = sherpa.FeatureConfig{SampleRate: 16000, FeatureDim: 80}
 
