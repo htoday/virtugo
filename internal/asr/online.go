@@ -1,6 +1,8 @@
 package asr
 
-import sherpa "github.com/k2-fsa/sherpa-onnx-go/sherpa_onnx"
+import (
+	sherpa "github.com/k2-fsa/sherpa-onnx-go/sherpa_onnx"
+)
 
 func InitOfflineASR() *sherpa.OfflineRecognizer {
 	c := sherpa.OfflineRecognizerConfig{}

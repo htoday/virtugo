@@ -14,16 +14,22 @@ type Config struct {
 	} `mapstructure:"openai_api_key"`
 }
 
+var Cwd string
 var Cfg Config
 
 // LoadConfig 读取 config.yaml，并自动设置环境变量
 func LoadConfig() {
 	// 获取可执行文件的目录
 	exePath, err := os.Executable()
+	exeDir := filepath.Dir(exePath)
+
 	if err != nil {
 		log.Fatalf("❌ 获取可执行文件路径失败: %v", err)
 	}
-	exeDir := filepath.Dir(exePath)
+	Cwd, err = os.Getwd()
+	if err != nil {
+		log.Fatalf("获取当前工作目录失败: %v", err)
+	}
 
 	// 让 viper 在可执行文件所在目录查找 config.yaml
 	viper.SetConfigName("config") // 不要加 .yaml

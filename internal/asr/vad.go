@@ -1,11 +1,15 @@
 package asr
 
-import sherpa "github.com/k2-fsa/sherpa-onnx-go/sherpa_onnx"
+import (
+	sherpa "github.com/k2-fsa/sherpa-onnx-go/sherpa_onnx"
+)
 
 func InitVad() sherpa.VadModelConfig {
 	// 1. Create VAD
+	//vadUrl := filepath.Join(config.Cwd, "asrModel", "tokens.txt")
+	vadUrl := "./asrModel/silero_vad.onnx"
 	config := sherpa.VadModelConfig{}
-	config.SileroVad.Model = "./asrModel/silero_vad.onnx"
+	config.SileroVad.Model = vadUrl
 	config.SileroVad.Threshold = 0.5
 	config.SileroVad.MinSilenceDuration = 0.5
 	config.SileroVad.MinSpeechDuration = 0.1
