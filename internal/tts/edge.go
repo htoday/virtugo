@@ -2,8 +2,12 @@ package tts
 
 import (
 	"errors"
+	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 	"github.com/wujunwei928/edge-tts-go/edge_tts"
+	"go.uber.org/zap"
+	"os"
+	"virtugo/logs"
 )
 
 var (
@@ -100,4 +104,34 @@ func init() {
 	rootCmd.Flags().StringVar(&writeMedia, "write-media", "", "send media output to file instead of stdout")
 	rootCmd.Flags().StringVar(&proxyURL, "proxy", "", "use a proxy for TTS and voice list")
 	rootCmd.Flags().BoolVar(&listVoices, "list-voices", false, "lists available voices and exits")
+}
+
+type EdgeTTS struct {
+	voice string
+}
+
+func NewEdgeTTS(voice string) *EdgeTTS {
+	return &EdgeTTS{voice: voice}
+}
+
+func (e *EdgeTTS) Generate(text string) (string, error) {
+	audioData, err := Execute(text, e.voice)
+	if err != nil {
+		logs.Logger.Error("TTS执行失败", zap.Error(err))
+		return "", nil
+	}
+	// 保存 MP3 文件
+	err = os.MkdirAll("cache", 0755) // Create the directory if it doesn't exist
+	if err != nil {
+		logs.Logger.Error("创建cache目录失败", zap.Error(err))
+		return "", err
+	}
+	filename := uuid.New().String()
+	path := "cache/" + filename + ".mp3"
+	writeMediaErr := os.WriteFile(path, audioData, 0644)
+	if writeMediaErr != nil {
+		logs.Logger.Error("写入MP3文件失败", zap.Error(writeMediaErr))
+		return path, err
+	}
+	return path, nil
 }

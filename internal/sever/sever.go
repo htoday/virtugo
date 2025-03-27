@@ -19,6 +19,6 @@ func StartSever(addr string, port string) {
 	})
 
 	v1.GET("/ws", handler.HandleWebsocket)
-
+	v1.POST("/load", handler.LoadFile)
 	r.Run(addr + ":" + port)
 }

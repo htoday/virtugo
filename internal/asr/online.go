@@ -23,7 +23,7 @@ func InitOfflineASR() *sherpa.OfflineRecognizer {
 	//c.ModelConfig.Paraformer.Model = "./sherpa-onnx-paraformer-trilingual-zh-cantonese-en/model.int8.onnx"
 	//c.ModelConfig.Tokens = "./sherpa-onnx-paraformer-trilingual-zh-cantonese-en/tokens.txt"
 	c.ModelConfig.NumThreads = 2
-	c.ModelConfig.Debug = 1
+	c.ModelConfig.Debug = 0
 	c.ModelConfig.Provider = "cpu"
 
 	return sherpa.NewOfflineRecognizer(&c)

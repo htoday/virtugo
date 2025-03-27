@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"go.uber.org/zap"
 	"log"
 	"os"
 	"path/filepath"
@@ -9,15 +9,17 @@ import (
 	"virtugo/internal/config"
 	"virtugo/internal/dao"
 	"virtugo/internal/sever"
+	"virtugo/logs"
 )
 
 func main() {
+	logs.InitZap()
 	// 获取当前可执行文件（main.exe）的绝对路径
 	exePath, err := os.Executable()
 	if err != nil {
-		log.Fatalf("❌ 获取可执行文件路径失败: %v", err)
+		logs.Logger.Panic("❌ 获取可执行文件路径失败:", zap.Error(err))
 	}
-	log.Println("exepath", exePath)
+	logs.Logger.Debug("exepath是:" + exePath)
 	// 获取 main.exe 所在目录
 	exeDir := filepath.Dir(exePath)
 	// 处理 GoLand 临时编译路径问题
@@ -32,17 +34,15 @@ func main() {
 
 	// 计算 asrModel/model 目录
 	modelPath := filepath.Join(exeDir, "asrModel", "model.int8.onnx")
-	fmt.Println("可执行文件目录:", exeDir)
-	fmt.Println("模型路径:", modelPath)
-
+	logs.Logger.Info("可执行文件目录:" + exeDir)
+	logs.Logger.Info("模型路径:" + modelPath)
 	// 检查文件是否存在
 	if _, err := os.Stat(modelPath); os.IsNotExist(err) {
 		log.Fatalf("❌ 模型文件不存在: %s", modelPath)
 	}
-
-	fmt.Println("✅ 模型文件存在，可以使用")
+	logs.Logger.Info("✅ 模型文件存在，可以使用")
 	dao.InitChromemDB()
 	dao.InitSqlite()
-	config.LoadConfig()
+	config.LoadConfig(exeDir)
 	sever.StartSever("127.0.0.1", "8080")
 }

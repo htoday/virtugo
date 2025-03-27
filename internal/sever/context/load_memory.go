@@ -2,10 +2,13 @@ package context
 
 import (
 	"context"
+	"fmt"
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
+	"go.uber.org/zap"
 	"log"
 	"virtugo/internal/dao"
+	"virtugo/logs"
 )
 
 func InitLoadMemory() *compose.Lambda {
@@ -13,27 +16,37 @@ func InitLoadMemory() *compose.Lambda {
 
 		collection, err := dao.ChromemDB.GetOrCreateCollection("memory", nil, nil)
 		if err != nil {
-			log.Println("获取memory集合失败", err)
+			logs.Logger.Error("获取memory集合失败", zap.Error(err))
 		}
 		count := collection.Count()
 		var nResult int
-		if count >= 5 {
-			nResult = 5
+		if count >= 10 {
+			nResult = 10
 		} else {
-			nResult = count
+			if count == 0 {
+				nResult = 1
+			} else {
+				nResult = count
+			}
 		}
 		result, err := collection.Query(ctx, input, nResult, nil, nil)
 		if err != nil {
-			log.Println("查询memory集合失败", err)
+			logs.Logger.Error("获取memory集合失败", zap.Error(err))
 		}
 		memories := ""
 		for i, item := range result {
+			if item.Similarity < 0.4 {
+				continue
+			}
 			memories += item.Content
+			memories += fmt.Sprintf("%f", item.Similarity)
 			if i != len(result)-1 {
 				memories += ","
 			}
+
 		}
-		log.Println("查询到的memory:", memories)
+		logs.Logger.Info("查询到的memory:" + memories)
+		//rag部分
 
 		rows, err := dao.SqliteDB.Query("SELECT role, content, timestamp FROM messages ORDER BY timestamp DESC LIMIT 5")
 		if err != nil {
@@ -71,6 +84,7 @@ func InitLoadMemory() *compose.Lambda {
 			"long_term_memory": memories,
 			"chat_history":     chatHistory,
 			"question":         input,
+			//"rag_content":      ragContent,
 		}
 		go InsertMessage(dao.SqliteDB, "user", input)
 		return output, nil
