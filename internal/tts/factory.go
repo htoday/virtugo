@@ -4,7 +4,6 @@ import (
 	"errors"
 	"strings"
 	"virtugo/internal/config"
-	"virtugo/logs"
 )
 
 type TTS interface {
@@ -16,14 +15,14 @@ func NewTTS() (TTS, error) {
 
 	switch {
 	case strings.Contains(serviceType, "edge"):
-		logs.Logger.Debug("使用 EdgeTTS")
+		//logs.Logger.Debug("使用 EdgeTTS")
 		edge_tts_voice := config.Cfg.TTS.EdgeTTSVoice
 		if edge_tts_voice == "" {
 			edge_tts_voice = "zh-CN-XiaoxiaoNeural"
 		}
 		return NewEdgeTTS(edge_tts_voice), nil
 	case strings.Contains(serviceType, "fish"):
-		logs.Logger.Debug("使用 FishAudioTTS")
+		//logs.Logger.Debug("使用 FishAudioTTS")
 		fish_audio_voice := config.Cfg.TTS.FishAudioVoice
 		fish_audio_key := config.Cfg.TTS.FishAudioKey
 		if fish_audio_key == "" {

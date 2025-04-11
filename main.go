@@ -2,7 +2,6 @@ package main
 
 import (
 	"go.uber.org/zap"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -38,11 +37,14 @@ func main() {
 	logs.Logger.Info("模型路径:" + modelPath)
 	// 检查文件是否存在
 	if _, err := os.Stat(modelPath); os.IsNotExist(err) {
-		log.Fatalf("❌ 模型文件不存在: %s", modelPath)
+		logs.Logger.Error("❌ 模型文件不存在" + modelPath)
+	} else {
+		logs.Logger.Info("✅ 模型文件存在，可以使用")
 	}
-	logs.Logger.Info("✅ 模型文件存在，可以使用")
+
 	dao.InitChromemDB()
 	dao.InitSqlite()
 	config.LoadConfig(exeDir)
+	config.LoadMCPJson()
 	sever.StartSever("127.0.0.1", "8080")
 }

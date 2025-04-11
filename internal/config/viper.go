@@ -12,16 +12,24 @@ type Config struct {
 	OpenAI struct {
 		Key string `mapstructure:"key"`
 	} `mapstructure:"openai_api_key"`
-	Prompt struct {
-		Persona string `mapstructure:"persona"`
-	} `mapstructure:"prompt"`
-	Temperature float32 `mapstructure:"Temperature"`
-	TTS         struct {
+
+	ModelInfo struct {
+		RoleName     string  `mapstructure:"role_name"`
+		ModelName    string  `mapstructure:"model_name"`
+		BaseUrl      string  `mapstructure:"base_url"`
+		ApiKey       string  `mapstructure:"api_key"`
+		Temperature  float32 `mapstructure:"temperature"`
+		Persona      string  `mapstructure:"persona"`
+		SystemPrompt string  `mapstructure:"system_prompt"`
+	} `mapstructure:"model_info"`
+
+	TTS struct {
 		ServiceType    string `mapstructure:"service_type"`
 		EdgeTTSVoice   string `mapstructure:"edge_tts_voice"`
 		FishAudioKey   string `mapstructure:"fish_audio_key"`
 		FishAudioVoice string `mapstructure:"fish_audio_voice"`
 	} `mapstructure:"tts"`
+	Language string `mapstructure:"language"`
 }
 
 var ModelDirRoot string

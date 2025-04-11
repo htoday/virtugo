@@ -10,6 +10,7 @@ import (
 	"github.com/philippgille/chromem-go"
 	"go.uber.org/zap"
 	"time"
+	"virtugo/internal/config"
 	"virtugo/internal/dao"
 	"virtugo/logs"
 )
@@ -27,6 +28,12 @@ type queryTextReq struct {
 }
 type queryTextResp struct {
 	text string
+}
+type changeLanguageReq struct {
+	Language string `json:"language" jsonschema:"description=你想要切换的语言"`
+}
+type changeLanguageResp struct {
+	status string
 }
 
 func GetSaveMemoryTool() tool.InvokableTool {
@@ -70,6 +77,42 @@ func GetSaveMemoryTool() tool.InvokableTool {
 	)
 	return saveMemoryTool
 }
+
+func ChangeLanguage() tool.InvokableTool {
+	saveMemoryTool := utils.NewTool(
+		&schema.ToolInfo{
+			Name: "change_language",
+			Desc: "切换你回复的语言,zh是中文，jp是日语,en是英语",
+			ParamsOneOf: schema.NewParamsOneOfByParams(map[string]*schema.ParameterInfo{
+				"language": {
+					Type:     schema.String,
+					Desc:     "你想要切换的语言,在zh,jp,en中选择",
+					Required: true,
+				},
+			}),
+		}, func(ctx context.Context, input *changeLanguageReq) (output *changeLanguageResp, err error) {
+			resp := ""
+			switch input.Language {
+			case "zh":
+				logs.Logger.Info("ai切换了语言为中文")
+				config.Cfg.Language = "zh"
+				resp = "切换完成"
+			case "jp":
+				logs.Logger.Info("ai切换了语言为日语")
+				config.Cfg.Language = "jp"
+				resp = "切换完成，请严格遵守格式，你需要用把回答翻译成不同的语言,你的回答需要先用日语，再用中文回答，中间用——分隔，例如 こんにちは——你好"
+			case "en":
+				logs.Logger.Info("ai切换了语言为英语")
+				config.Cfg.Language = "en"
+				resp = "切换完成，请严格遵守格式，你需要用把回答翻译成不同的语言,你的回答需要先用英语，再用中文回答，中间用——分隔，例如 hello——你好"
+			}
+
+			return &changeLanguageResp{status: resp}, nil
+		},
+	)
+	return saveMemoryTool
+}
+
 func GetQueryTextTool() tool.InvokableTool {
 	queryTextTool := utils.NewTool(
 		&schema.ToolInfo{

@@ -11,8 +11,12 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"strings"
 	"sync"
+	"time"
 	"virtugo/internal/asr"
+	"virtugo/internal/config"
+	"virtugo/internal/kws"
 	"virtugo/internal/sever/context"
 	model "virtugo/internal/sever/message_model"
 	"virtugo/internal/tts"
@@ -35,17 +39,29 @@ func HandleWebsocket(c *gin.Context) {
 		return
 	}
 	defer conn.Close()
+
+	//初始化服务上下文
 	serviceContext := context.ServiceContext{}
 	serviceContext.InitServiceContext()
 
+	//初始化重置定时器
+	rt := NewResettableTimer(30*time.Second, func() {
+		serviceContext.WorkStage = "sleep"
+	})
+
+	//初始化语音识别
 	recAsr := asr.InitOfflineASR()
+
+	//初始化VAD
 	vadConfig := asr.InitVad()
 	var bufferSizeInSeconds float32 = 20
 	vad := sherpa.NewVoiceActivityDetector(&vadConfig, bufferSizeInSeconds)
-	// 缓存音频
-	//var audioBuffer SafeBuffer
+
+	kwsConfig := kws.InitKeyWordSpot()
+	spotter := sherpa.NewKeywordSpotter(&kwsConfig)
+
 	var mutex sync.Mutex
-	//var lastSpeechTime time.Time
+
 	var printed bool
 
 	k := 0
@@ -72,14 +88,14 @@ func HandleWebsocket(c *gin.Context) {
 				//if err != nil {
 				//	log.Println("添加用户问题失败:", err)
 				//}
-				mutex.Lock()
+
 				streamResult, err := serviceContext.Stream(inputMessage.Content)
 				if err != nil {
 					logs.Logger.Error("获取LLM流式回复失败", zap.Error(err))
 					continue
 				}
 				reportStream(streamResult, conn)
-				mutex.Unlock()
+
 			case "image":
 				fmt.Println("处理图片消息:", inputMessage.Content)
 			default:
@@ -119,18 +135,49 @@ func HandleWebsocket(c *gin.Context) {
 				audio.Samples = speechSegment.Samples
 				audio.SampleRate = 16000
 
-				// Now decode it
-				//go decode(recAsr, audio, k)
-				go func() {
-					text := recognizeSpeech(recAsr, audio)
-					mutex.Lock()
-					streamResult, err := serviceContext.Stream(text)
-					if err != nil {
-						logs.Logger.Error("获取LLM流式回复失败", zap.Error(err))
+				if serviceContext.WorkStage == "sleeping" {
+					stream := sherpa.NewKeywordStream(spotter)
+					defer sherpa.DeleteOnlineStream(stream)
+					stream.AcceptWaveform(audio.SampleRate, audio.Samples)
+					isDetected := false
+					for spotter.IsReady(stream) {
+						spotter.Decode(stream)
+						result := spotter.GetResult(stream)
+						if result.Keyword != "" {
+							spotter.Reset(stream)
+							logs.Logger.Info("检测到关键词", zap.String("keyword", result.Keyword))
+							isDetected = true
+							go rt.Start()
+							serviceContext.WorkStage = "work"
+							go func() {
+								text := recognizeSpeech(recAsr, audio)
+								mutex.Lock()
+								streamResult, err := serviceContext.Stream(text)
+								if err != nil {
+									logs.Logger.Error("获取LLM流式回复失败", zap.Error(err))
+								}
+								reportStream(streamResult, conn)
+								mutex.Unlock()
+							}()
+						}
 					}
-					reportStream(streamResult, conn)
-					mutex.Unlock()
-				}()
+					if !isDetected {
+						logs.Logger.Debug("未检测到关键词")
+					}
+				} else {
+					go rt.Reset()
+					go func() {
+						text := recognizeSpeech(recAsr, audio)
+
+						//mutex.Lock()
+						streamResult, err := serviceContext.Stream(text)
+						if err != nil {
+							logs.Logger.Error("获取LLM流式回复失败", zap.Error(err))
+						}
+						reportStream(streamResult, conn)
+						//mutex.Unlock()
+					}()
+				}
 
 				k += 1
 			}
@@ -141,75 +188,138 @@ func HandleWebsocket(c *gin.Context) {
 }
 
 func reportStream(sr *schema.StreamReader[*schema.Message], conn *websocket.Conn) {
-	defer sr.Close()
 
 	var combinedMessages string
+	var buffer string
+	var isChinese bool
+	isChinese = false
+	buffer = ""
+	tts := func(text string) {
+		tts_service, err := tts.NewTTS()
+		if err != nil {
+			logs.Logger.Error("TTS初始化失败", zap.Error(err))
+		} else {
+			path, err := tts_service.Generate(text)
+			if err != nil {
+				logs.Logger.Error("TTS执行失败", zap.Error(err))
+			} else {
+				mp3Data, err := ioutil.ReadFile(path)
+				if err != nil {
+					logs.Logger.Error("读取MP3文件失败", zap.Error(err))
+				}
+
+				// 发送 MP3 文件数据流
+				err = conn.WriteMessage(websocket.BinaryMessage, mp3Data)
+
+				if err != nil {
+					logs.Logger.Error("发送MP3文件失败", zap.Error(err))
+				}
+			}
+		}
+	}
+
 	if sr == nil {
+
 		return
 	}
+	lan := config.Cfg.Language
+	defer sr.Close()
 	for {
 		message, err := sr.Recv()
 
 		if err == io.EOF {
+			if len(buffer) > 1 {
+				logs.Logger.Debug("LLM最后回复", zap.String("content", buffer))
+				if lan == "zh" {
+					tts(buffer)
+				}
+			}
 			break
 		}
 		if err != nil {
 			logs.Logger.Error("接收消息流片段失败", zap.Error(err))
 			return
 		}
+
 		// 将消息拼接到 combinedMessages
 		combinedMessages += message.Content
-		// 将消息发送到 WebSocket 连接
-		err = conn.WriteJSON(message)
-		if err != nil {
-			logs.Logger.Error("发送消息到 WebSocket 失败", zap.Error(err))
-			return
+		buffer += message.Content
+
+		if lan == "zh" {
+			if strings.Contains(buffer, "|") {
+				parts := strings.Split(buffer, "|")
+				// 处理完整的部分
+				for i := 0; i < len(parts)-1; i++ {
+					logs.Logger.Debug("LLM回复", zap.String("content", parts[i]))
+					tts(parts[i])
+				}
+				// 剩下最后一个部分是可能未完成的内容，留着
+				buffer = parts[len(parts)-1]
+
+			}
+			if strings.Contains(buffer, "｜") {
+				parts := strings.Split(buffer, "｜")
+				// 处理完整的部分
+				for i := 0; i < len(parts)-1; i++ {
+					logs.Logger.Debug("LLM回复", zap.String("content", parts[i]))
+					tts(parts[i])
+				}
+				// 剩下最后一个部分是可能未完成的内容，留着
+				buffer = parts[len(parts)-1]
+			}
+			// 将消息发送到 WebSocket 连接
+			err = conn.WriteJSON(message)
+			if err != nil {
+				logs.Logger.Error("发送消息到 WebSocket 失败", zap.Error(err))
+				return
+			}
+			continue
+		}
+		if !isChinese {
+			if strings.Contains(buffer, "|") {
+				parts := strings.Split(buffer, "|")
+				// 处理完整的部分
+				for i := 0; i < len(parts)-1; i++ {
+					logs.Logger.Debug("LLM回复", zap.String("content", parts[i]))
+					tts(parts[i])
+				}
+				// 剩下最后一个部分是可能未完成的内容，留着
+				buffer = parts[len(parts)-1]
+
+			}
+			if strings.Contains(buffer, "｜") {
+				parts := strings.Split(buffer, "｜")
+				// 处理完整的部分
+				for i := 0; i < len(parts)-1; i++ {
+					logs.Logger.Debug("LLM回复", zap.String("content", parts[i]))
+					tts(parts[i])
+				}
+				// 剩下最后一个部分是可能未完成的内容，留着
+				buffer = parts[len(parts)-1]
+			}
+			if strings.Contains(buffer, "——") {
+				parts := strings.Split(buffer, "——")
+				// 处理完整的部分
+				for i := 0; i < len(parts)-1; i++ {
+					logs.Logger.Debug("LLM回复", zap.String("content", parts[i]))
+					tts(parts[i])
+				}
+				// 剩下最后一个部分是可能未完成的内容，留着
+				buffer = parts[len(parts)-1]
+				isChinese = true
+			}
+		} else {
+			// 将消息发送到 WebSocket 连接
+			err = conn.WriteJSON(message)
+			if err != nil {
+				logs.Logger.Error("发送消息到 WebSocket 失败", zap.Error(err))
+				return
+			}
 		}
 	}
+
 	go context.SaveContext("ai", combinedMessages) //异步保存对话历史
 	//调用tts
-
-	tts_service, err := tts.NewTTS()
-	if err != nil {
-		logs.Logger.Error("TTS初始化失败", zap.Error(err))
-	} else {
-		path, err := tts_service.Generate(combinedMessages)
-		if err != nil {
-			logs.Logger.Error("TTS执行失败", zap.Error(err))
-		} else {
-			mp3Data, err := ioutil.ReadFile(path)
-			if err != nil {
-				logs.Logger.Error("读取MP3文件失败", zap.Error(err))
-			}
-
-			// 发送 MP3 文件数据流
-			err = conn.WriteMessage(websocket.BinaryMessage, mp3Data)
-
-			if err != nil {
-				logs.Logger.Error("发送MP3文件失败", zap.Error(err))
-			}
-		}
-	}
-	//audioData, err := tts.Execute(combinedMessages, "zh-CN-XiaoxiaoNeural")
-	//if err != nil {
-	//	logs.Logger.Error("TTS执行失败", zap.Error(err))
-	//}else{
-	//
-	//}
-	// 保存 MP3 文件
-	//err = os.MkdirAll("cache", 0755) // Create the directory if it doesn't exist
-	//if err != nil {
-	//	logs.Logger.Error("创建cache目录失败", zap.Error(err))
-	//	return
-	//}
-	//
-	//
-	//filename := uuid.New().String()
-	//path := "cache/" + filename + ".mp3"
-	//writeMediaErr := os.WriteFile(path, audioData, 0644)
-	//if writeMediaErr != nil {
-	//	logs.Logger.Error("写入MP3文件失败", zap.Error(writeMediaErr))
-	//}
 
 	// 输出拼接后的消息到日志
 	logs.Logger.Info("LLM回复", zap.String("content", combinedMessages))
