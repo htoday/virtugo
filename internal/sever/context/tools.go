@@ -23,6 +23,12 @@ type saveMemoryResp struct {
 	status string
 }
 
+type sleepReq struct {
+}
+type sleepResp struct {
+	status string
+}
+
 type queryTextReq struct {
 	KeyInfo string `json:"key_info" jsonschema:"description=你想要查询的内容"`
 }
@@ -111,6 +117,19 @@ func ChangeLanguage() tool.InvokableTool {
 		},
 	)
 	return saveMemoryTool
+}
+
+func Sleep() tool.InvokableTool {
+	sleepTool := utils.NewTool(
+		&schema.ToolInfo{
+			Name: "go_to_sleep",
+			Desc: "当用户明确表示出让ai休眠或说再见时，调用该工具进入休眠状态",
+		}, func(ctx context.Context, input any) (output *sleepResp, err error) {
+			logs.Logger.Info("调用了休眠工具ai进入休眠状态")
+			return &sleepResp{status: ""}, nil
+		},
+	)
+	return sleepTool
 }
 
 func GetQueryTextTool() tool.InvokableTool {

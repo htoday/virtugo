@@ -18,6 +18,7 @@ import (
 	"virtugo/internal/config"
 	"virtugo/internal/kws"
 	"virtugo/internal/sever/context"
+	"virtugo/internal/sever/global"
 	model "virtugo/internal/sever/message_model"
 	"virtugo/internal/tts"
 	"virtugo/logs"
@@ -42,12 +43,16 @@ func HandleWebsocket(c *gin.Context) {
 
 	//初始化服务上下文
 	serviceContext := context.ServiceContext{}
-	serviceContext.InitServiceContext()
-
+	serviceContext.InitServiceContext(conn)
+	global.WorkState = "sleeping"
 	//初始化重置定时器
 	rt := NewResettableTimer(30*time.Second, func() {
-		serviceContext.WorkStage = "sleep"
+		global.WorkState = "sleeping"
 	})
+
+	// 添加语音播放状态变量
+	isAudioPlaying := false
+	audioPlayingMutex := sync.Mutex{}
 
 	//初始化语音识别
 	recAsr := asr.InitOfflineASR()
@@ -63,6 +68,11 @@ func HandleWebsocket(c *gin.Context) {
 	var mutex sync.Mutex
 
 	var printed bool
+
+	// 添加语音持续时间跟踪
+	var speechDuration float32 = 0
+	const interruptThreshold float32 = 1.5 // 1.5秒阈值
+	const samplesPerSecond float32 = 16000 // 采样率
 
 	k := 0
 	logs.Logger.Info("创建连接成功")
@@ -89,13 +99,16 @@ func HandleWebsocket(c *gin.Context) {
 				//	log.Println("添加用户问题失败:", err)
 				//}
 
-				streamResult, err := serviceContext.Stream(inputMessage.Content)
+				_, err := serviceContext.Stream(inputMessage.Content)
 				if err != nil {
 					logs.Logger.Error("获取LLM流式回复失败", zap.Error(err))
 					continue
 				}
-				reportStream(streamResult, conn)
-
+				//ReportStream(streamResult, conn)
+			case "nospeek":
+				audioPlayingMutex.Lock()
+				isAudioPlaying = false
+				audioPlayingMutex.Unlock()
 			case "image":
 				fmt.Println("处理图片消息:", inputMessage.Content)
 			default:
@@ -110,23 +123,43 @@ func HandleWebsocket(c *gin.Context) {
 
 			vad.AcceptWaveform(pcmData)
 
-			if vad.IsSpeech() && !printed {
-				printed = true
-				logs.Logger.Debug("检测到语音")
-				interrupt_msg := map[string]interface{}{
-					"type":    "interrupt",
-					"content": "interrupt",
-				}
-				logs.Logger.Debug("发送打断消息")
-				err = conn.WriteJSON(interrupt_msg)
-				if err != nil {
-					logs.Logger.Warn("发送中断消息失败", zap.Error(err))
-				}
-			}
+			// 计算当前音频片段的时长（秒）
+			audioChunkDuration := float32(len(pcmData)) / samplesPerSecond
 
-			if !vad.IsSpeech() {
+			if vad.IsSpeech() {
+				// 累加语音持续时间
+				speechDuration += audioChunkDuration
+
+				// 语音持续时间超过1.5秒且尚未发送打断消息
+				if speechDuration >= interruptThreshold && !printed {
+					printed = true
+					logs.Logger.Debug("检测到语音超过1.5秒", zap.Float32("duration", speechDuration))
+
+					// 检查语音播放状态
+					audioPlayingMutex.Lock()
+					currentAudioPlaying := isAudioPlaying
+					audioPlayingMutex.Unlock()
+
+					// 如果语音正在播放，不做任何操作，等待关键词触发
+					if !currentAudioPlaying {
+						interrupt_msg := map[string]interface{}{
+							"type":    "interrupt",
+							"content": "interrupt",
+						}
+						logs.Logger.Debug("发送打断消息")
+						serviceContext.StopStream()
+						err = conn.WriteJSON(interrupt_msg)
+						if err != nil {
+							logs.Logger.Warn("发送中断消息失败", zap.Error(err))
+						}
+					}
+				}
+			} else {
+				// 检测到非语音，重置语音持续时间计数器
+				speechDuration = 0
 				printed = false
 			}
+
 			for !vad.IsEmpty() {
 				speechSegment := vad.Front()
 				vad.Pop()
@@ -135,7 +168,13 @@ func HandleWebsocket(c *gin.Context) {
 				audio.Samples = speechSegment.Samples
 				audio.SampleRate = 16000
 
-				if serviceContext.WorkStage == "sleeping" {
+				// 检查语音播放状态和工作状态
+				audioPlayingMutex.Lock()
+				currentAudioPlaying := isAudioPlaying
+				audioPlayingMutex.Unlock()
+
+				if global.WorkState == "sleeping" || currentAudioPlaying {
+					// 如果系统处于睡眠状态或正在播放语音，需要关键词唤醒
 					stream := sherpa.NewKeywordStream(spotter)
 					defer sherpa.DeleteOnlineStream(stream)
 					stream.AcceptWaveform(audio.SampleRate, audio.Samples)
@@ -147,16 +186,23 @@ func HandleWebsocket(c *gin.Context) {
 							spotter.Reset(stream)
 							logs.Logger.Info("检测到关键词", zap.String("keyword", result.Keyword))
 							isDetected = true
-							go rt.Start()
-							serviceContext.WorkStage = "work"
+							go rt.Reset()
+							global.WorkState = "work"
 							go func() {
+								// 设置语音状态为播放中
+								audioPlayingMutex.Lock()
+								isAudioPlaying = true
+								audioPlayingMutex.Unlock()
 								text := recognizeSpeech(recAsr, audio)
+								if len(text) < 1 {
+									return
+								}
 								mutex.Lock()
-								streamResult, err := serviceContext.Stream(text)
+								_, err := serviceContext.Stream(text)
 								if err != nil {
 									logs.Logger.Error("获取LLM流式回复失败", zap.Error(err))
 								}
-								reportStream(streamResult, conn)
+								//ReportStream(streamResult, conn)
 								mutex.Unlock()
 							}()
 						}
@@ -165,16 +211,23 @@ func HandleWebsocket(c *gin.Context) {
 						logs.Logger.Debug("未检测到关键词")
 					}
 				} else {
+					// 设置语音状态为播放中
+					audioPlayingMutex.Lock()
+					isAudioPlaying = true
+					audioPlayingMutex.Unlock()
+					// 如果系统已唤醒且没有播放语音，直接处理语音输入
 					go rt.Reset()
 					go func() {
 						text := recognizeSpeech(recAsr, audio)
-
+						if len(text) < 1 {
+							return
+						}
 						//mutex.Lock()
 						streamResult, err := serviceContext.Stream(text)
 						if err != nil {
 							logs.Logger.Error("获取LLM流式回复失败", zap.Error(err))
 						}
-						reportStream(streamResult, conn)
+						ReportStream(streamResult, conn)
 						//mutex.Unlock()
 					}()
 				}
@@ -187,7 +240,7 @@ func HandleWebsocket(c *gin.Context) {
 	}
 }
 
-func reportStream(sr *schema.StreamReader[*schema.Message], conn *websocket.Conn) {
+func ReportStream(sr *schema.StreamReader[*schema.Message], conn *websocket.Conn) {
 
 	var combinedMessages string
 	var buffer string
@@ -195,6 +248,7 @@ func reportStream(sr *schema.StreamReader[*schema.Message], conn *websocket.Conn
 	isChinese = false
 	buffer = ""
 	tts := func(text string) {
+
 		tts_service, err := tts.NewTTS()
 		if err != nil {
 			logs.Logger.Error("TTS初始化失败", zap.Error(err))
@@ -216,10 +270,14 @@ func reportStream(sr *schema.StreamReader[*schema.Message], conn *websocket.Conn
 				}
 			}
 		}
+
+		//// 设置语音状态为播放完毕
+		//audioPlayingMutex.Lock()
+		//*isAudioPlaying = false
+		//audioPlayingMutex.Unlock()
 	}
 
 	if sr == nil {
-
 		return
 	}
 	lan := config.Cfg.Language

@@ -20,7 +20,7 @@ func InitKeyWordSpot() sherpa.KeywordSpotterConfig {
 	config.ModelConfig.Tokens = TokensUrl
 	config.KeywordsFile = KeyWordUrl
 	config.ModelConfig.NumThreads = 1
-	config.ModelConfig.Debug = 1
+	config.ModelConfig.Debug = 0
 
 	return config
 }

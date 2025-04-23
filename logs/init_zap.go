@@ -13,7 +13,7 @@ func InitZap() {
 	// 创建日志编码器配置
 	encoderConfig := zap.NewDevelopmentEncoderConfig()
 	encoderConfig.EncodeTime = func(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
-		enc.AppendString(t.Format("2006-01-02 15:04:05"))
+		enc.AppendString(t.Format("2006-01-02 15:04:05.000")) // 自定义时间格式
 	}
 	encoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder // 启用彩色日志级别编码器
 

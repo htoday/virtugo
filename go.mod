@@ -3,7 +3,7 @@ module virtugo
 go 1.23.0
 
 require (
-	github.com/cloudwego/eino v0.3.16
+	github.com/cloudwego/eino v0.3.26
 	github.com/cloudwego/eino-ext/components/document/loader/file v0.0.0-20250320062631-616205c32186
 	github.com/cloudwego/eino-ext/components/document/transformer/splitter/recursive v0.0.0-20250320062631-616205c32186
 	github.com/cloudwego/eino-ext/components/model/openai v0.0.0-20250225083118-fd27d80f189c

@@ -15,6 +15,8 @@ github.com/cloudwego/base64x v0.1.5 h1:XPciSp1xaq2VCSt6lF0phncD4koWyULpl5bUxbfCy
 github.com/cloudwego/base64x v0.1.5/go.mod h1:0zlkT4Wn5C6NdauXdJRhSKRlJvmclQ1hhJgA0rcu/8w=
 github.com/cloudwego/eino v0.3.16 h1:ASN8zISyoEdjEsPnIw5GazSHtbNY97NDthQ2B69yiZw=
 github.com/cloudwego/eino v0.3.16/go.mod h1:+kmJimGEcKuSI6OKhet7kBedkm1WUZS3H1QRazxgWUo=
+github.com/cloudwego/eino v0.3.26 h1:FdJJTCdNrc9xPcYkLZiEyr7AA+WgyCKCbY+VNDXIaCE=
+github.com/cloudwego/eino v0.3.26/go.mod h1:wUjz990apdsaOraOXdh6CdhVXq8DJsOvLsVlxNTcNfY=
 github.com/cloudwego/eino-ext/components/document/loader/file v0.0.0-20250320062631-616205c32186 h1:m229+iFT39WX0XSq5bOPzJHdetIyrPBU19AVjWK6iNo=
 github.com/cloudwego/eino-ext/components/document/loader/file v0.0.0-20250320062631-616205c32186/go.mod h1:hjQG5vTz0n/2uwzves3tio9UpyUaIvev85oxCd9/eaI=
 github.com/cloudwego/eino-ext/components/document/transformer/splitter/recursive v0.0.0-20250320062631-616205c32186 h1:UBbVFPSBP7uHVLO722Fp5NaW0WY0mG4NqqZfLLU7JQI=
