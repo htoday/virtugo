@@ -1,11 +1,9 @@
-package handler
+package websocket
 
 import (
 	"bytes"
 	"encoding/binary"
-	sherpa "github.com/k2-fsa/sherpa-onnx-go/sherpa_onnx"
 	"log"
-	"virtugo/logs"
 )
 
 func samplesInt16ToFloat(inSamples []byte) []float32 {
@@ -31,16 +29,15 @@ func samplesInt16ToFloat(inSamples []byte) []float32 {
 }
 
 // **语音识别**
-func recognizeSpeech(recognizer *sherpa.OfflineRecognizer, audio *sherpa.Wave) string {
-	stream := sherpa.NewOfflineStream(recognizer)
-	defer sherpa.DeleteOfflineStream(stream)
-	stream.AcceptWaveform(audio.SampleRate, audio.Samples)
-
-	recognizer.Decode(stream)
-	result := stream.GetResult()
-	if result == nil {
-		return ""
-	}
-	logs.Logger.Info("识别到文本：" + result.Text)
-	return result.Text
-}
+//func recognizeSpeech(recognizer *sherpa.OfflineRecognizer, audio *sherpa.Wave) string {
+//	stream := sherpa.NewOfflineStream(recognizer)
+//	defer sherpa.DeleteOfflineStream(stream)
+//	stream.AcceptWaveform(audio.SampleRate, audio.Samples)
+//	recognizer.Decode(stream)
+//	result := stream.GetResult()
+//	if result == nil {
+//		return ""
+//	}
+//	logs.Logger.Info("识别到文本：" + result.Text)
+//	return result.Text
+//}

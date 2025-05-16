@@ -24,3 +24,9 @@ func InitKeyWordSpot() sherpa.KeywordSpotterConfig {
 
 	return config
 }
+
+func NewKeyWordSpotter() *sherpa.KeywordSpotter {
+	kwsConfig := InitKeyWordSpot()
+	spotter := sherpa.NewKeywordSpotter(&kwsConfig)
+	return spotter
+}

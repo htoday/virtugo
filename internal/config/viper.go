@@ -1,40 +1,63 @@
 package config
 
 import (
+	"encoding/json"
+	"fmt"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 	"log"
-	"os"
 	"virtugo/logs"
 )
 
+type ModelInfo struct {
+	ApiType      string  `mapstructure:"api_type"`
+	RoleName     string  `mapstructure:"role_name"`
+	ModelName    string  `mapstructure:"model_name"`
+	BaseURL      string  `mapstructure:"base_url"`
+	APIKey       string  `mapstructure:"api_key"`
+	Temperature  float32 `mapstructure:"temperature"`
+	Persona      string  `mapstructure:"persona"`
+	SystemPrompt string  `mapstructure:"system_prompt"`
+	Live2dModel  string  `mapstructure:"live2d_model"`
+}
+
+type TTSConfig struct {
+	ServiceType    string `mapstructure:"service_type"`
+	EdgeVoice      string `mapstructure:"edge_tts_voice"`
+	FishAudioKey   string `mapstructure:"fish_audio_key"`
+	FishAudioVoice string `mapstructure:"fish_audio_voice"`
+}
+
+type ModelConfig struct {
+	ModelInfo ModelInfo   `mapstructure:"model_info"`
+	TTS       TTSConfig   `mapstructure:"tts"`
+	Tools     ToolsConfig `mapstructure:"tools"`
+}
+type ToolsConfig struct {
+	DuckDuckGo struct {
+		IsEnable bool `mapstructure:"is_enable"`
+	} `mapstructure:"duckduckgo"`
+	Wikipedia struct {
+		IsEnable  bool   `mapstructure:"is_enable"`
+		UserAgent string `mapstructure:"user_agent"`
+	} `mapstructure:"wikipedia"`
+	MCPTool struct {
+		IsEnable bool `mapstructure:"is_enable"`
+	} `mapstructure:"mcp_tool"`
+}
 type Config struct {
-	OpenAI struct {
-		Key string `mapstructure:"key"`
-	} `mapstructure:"openai_api_key"`
-
-	ModelInfo struct {
-		RoleName     string  `mapstructure:"role_name"`
-		ModelName    string  `mapstructure:"model_name"`
-		BaseUrl      string  `mapstructure:"base_url"`
-		ApiKey       string  `mapstructure:"api_key"`
-		Temperature  float32 `mapstructure:"temperature"`
-		Persona      string  `mapstructure:"persona"`
-		SystemPrompt string  `mapstructure:"system_prompt"`
-	} `mapstructure:"model_info"`
-
-	TTS struct {
-		ServiceType    string `mapstructure:"service_type"`
-		EdgeTTSVoice   string `mapstructure:"edge_tts_voice"`
-		FishAudioKey   string `mapstructure:"fish_audio_key"`
-		FishAudioVoice string `mapstructure:"fish_audio_voice"`
-	} `mapstructure:"tts"`
-	Language string `mapstructure:"language"`
+	Models            map[string]ModelConfig `mapstructure:"models"`
+	PreGenerateAmount int                    `mapstructure:"pre_generate_amount"`
+	//Language string                 `mapstructure:"language"`
+	AuthKey         string `mapstructure:"auth_key"`
+	KeyWordIsEnable bool   `mapstructure:"key_word_is_enable"` // 新增字段
+	History         struct {
+		MaxLength int `mapstructure:"max_length"`
+	} `mapstructure:"history"`
 }
 
 var ModelDirRoot string
 var Cfg Config
-var Cwd string
 
 // LoadConfig 读取 config.yaml，并自动设置环境变量
 func LoadConfig(exeDir string) {
@@ -45,6 +68,8 @@ func LoadConfig(exeDir string) {
 	viper.SetConfigType("yaml")
 	viper.AddConfigPath(exeDir) // 重点：让可执行文件和 config.yaml 放一起
 
+	viper.SetDefault("pre_generate_amount", 1)    // 设置默认值
+	viper.SetDefault("auth_key", "1145141919810") // 设置默认值
 	// 读取配置文件
 	if err := viper.ReadInConfig(); err != nil {
 		//log.Printf("⚠️  未找到配置文件: %v", err)
@@ -55,21 +80,6 @@ func LoadConfig(exeDir string) {
 	if err := viper.Unmarshal(&Cfg); err != nil {
 		log.Fatalf("❌ 解析配置失败: %v", err)
 	}
-
-	// **优先检查是否已存在环境变量**
-	if os.Getenv("OPENAI_API_KEY") == "" {
-		if Cfg.OpenAI.Key != "" {
-			_ = os.Setenv("OPENAI_API_KEY", Cfg.OpenAI.Key) // **自动设置环境变量**
-			logs.Logger.Info("✅ 已从配置文件加载 OPENAI_API_KEY")
-		} else {
-			log.Fatalf("❌ 缺少 OPENAI_API_KEY，请设置环境变量或修改 config.yaml")
-		}
-	} else {
-		logs.Logger.Info("✅ 发现已有环境变量 OPENAI_API_KEY")
-	}
-}
-
-// GetConfig 获取当前配置
-func GetConfig() *Config {
-	return &Cfg
+	b, _ := json.MarshalIndent(Cfg, "", "  ")
+	fmt.Println(string(b))
 }

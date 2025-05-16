@@ -28,3 +28,23 @@ func InitOfflineASR() *sherpa.OfflineRecognizer {
 
 	return sherpa.NewOfflineRecognizer(&c)
 }
+
+type SherpaAsr struct {
+	*sherpa.OfflineRecognizer
+}
+
+func NewSherpaOfflineAsr() SherpaAsr {
+	return SherpaAsr{InitOfflineASR()}
+}
+
+func (s SherpaAsr) Recognize(audio *sherpa.Wave) (string, error) {
+	stream := sherpa.NewOfflineStream(s.OfflineRecognizer)
+	defer sherpa.DeleteOfflineStream(stream)
+	stream.AcceptWaveform(audio.SampleRate, audio.Samples)
+	s.Decode(stream)
+	result := stream.GetResult()
+	if result == nil {
+		return "", nil
+	}
+	return result.Text, nil
+}

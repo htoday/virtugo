@@ -7,7 +7,7 @@ import (
 	"virtugo/logs"
 )
 
-func InitVad() sherpa.VadModelConfig {
+func InitVadConfig() sherpa.VadModelConfig {
 	// 1. Create VAD
 	//vadUrl := filepath.Join(config.Cwd, "asrModel", "tokens.txt")
 	vadUrl := filepath.Join(config2.ModelDirRoot, "asrModel", "silero_vad.onnx")
@@ -27,4 +27,10 @@ func InitVad() sherpa.VadModelConfig {
 	return config
 
 	//defer sherpa.DeleteVoiceActivityDetector(vad)
+}
+func NewVad() *sherpa.VoiceActivityDetector {
+	vadConfig := InitVadConfig()
+	var bufferSizeInSeconds float32 = 20
+	vad := sherpa.NewVoiceActivityDetector(&vadConfig, bufferSizeInSeconds)
+	return vad
 }

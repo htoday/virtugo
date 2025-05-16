@@ -46,5 +46,7 @@ func main() {
 	dao.InitSqlite()
 	config.LoadConfig(exeDir)
 	config.LoadMCPJson()
-	sever.StartSever("127.0.0.1", "8080")
+
+	sever.StartSever("127.0.0.1", "8081")
+
 }
