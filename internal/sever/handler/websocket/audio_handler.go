@@ -60,12 +60,20 @@ func (a *AudioHandler) AddAudioPiece(audioPiece []float32) {
 
 		if config.Cfg.KeyWordIsEnable {
 			stream := sherpa.NewKeywordStream(a.kwsSpotter)
+			defer sherpa.DeleteOnlineStream(stream)
 			stream.AcceptWaveform(audioWave.SampleRate, audioWave.Samples)
-			a.kwsSpotter.Decode(stream)
-			result := a.kwsSpotter.GetResult(stream)
-			if result.Keyword != "" {
-				logs.Logger.Debug("关键词检测到", zap.String("result", result.Keyword))
-			} else {
+			is_detected := false
+			for a.kwsSpotter.IsReady(stream) {
+				a.kwsSpotter.Decode(stream)
+				result := a.kwsSpotter.GetResult(stream)
+				if result.Keyword != "" {
+					a.kwsSpotter.Reset(stream)
+					logs.Logger.Debug("关键词检测到", zap.String("result", result.Keyword))
+					is_detected = true
+					break
+				}
+			}
+			if !is_detected {
 				logs.Logger.Debug("未检测到关键词")
 				break
 			}
