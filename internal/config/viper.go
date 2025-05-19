@@ -54,6 +54,8 @@ type Config struct {
 	History         struct {
 		MaxLength int `mapstructure:"max_length"`
 	} `mapstructure:"history"`
+	BackendPort  int `mapstructure:"backend_port"`
+	FrontendPort int `mapstructure:"frontend_port"`
 }
 
 var ModelDirRoot string
@@ -70,6 +72,11 @@ func LoadConfig(exeDir string) {
 
 	viper.SetDefault("pre_generate_amount", 1)    // 设置默认值
 	viper.SetDefault("auth_key", "1145141919810") // 设置默认值
+	viper.SetDefault("key_word_is_enable", false) // 设置默认值
+	viper.SetDefault("backend_port", 8081)        // 设置默认值
+	viper.SetDefault("frontend_port", 8082)       // 设置默认值
+	viper.SetDefault("history.max_length", 10)    // 设置默认值
+
 	// 读取配置文件
 	if err := viper.ReadInConfig(); err != nil {
 		//log.Printf("⚠️  未找到配置文件: %v", err)

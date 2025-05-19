@@ -2,6 +2,8 @@ package sever
 
 import (
 	"github.com/gin-gonic/gin"
+	"strconv"
+	"virtugo/internal/config"
 	"virtugo/internal/sever/handler"
 	"virtugo/internal/sever/handler/websocket"
 	"virtugo/internal/sever/middleware"
@@ -30,7 +32,15 @@ func StartSever(addr string, port string) {
 	v1.POST("/conversation", handler.NewConversation)
 	v1.PUT("/conversation/:id", handler.RenameConversation)
 	v1.DELETE("/conversation/:id", handler.DeleteConversation)
+	v1.POST("/changeusername", handler.ChangeUsername)
 	v1.POST("/load", handler.LoadFile)
+	v1.GET("/user", handler.GetUserInfo)
+	// 设置HTML模板
+	//r.LoadHTMLGlob("templates/*")
+
+	r1 := gin.New()
+	r1.Static("/", "./out")
+	go r1.Run(":" + strconv.Itoa(config.Cfg.FrontendPort))
 
 	r.Run(addr + ":" + port)
 }

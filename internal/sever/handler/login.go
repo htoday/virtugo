@@ -89,7 +89,7 @@ func Login(c *gin.Context) {
 	c.JSON(200, gin.H{
 		"access_token":  accessToken,
 		"refresh_token": refreshToken,
-		"expires_in":    3600 * 24, // 24小时的秒数
+		"expires_in":    3600 * 24 * 7, // 一周
 		"token_type":    "Bearer",
 	})
 }

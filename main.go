@@ -4,6 +4,7 @@ import (
 	"go.uber.org/zap"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"virtugo/internal/config"
 	"virtugo/internal/dao"
@@ -47,6 +48,6 @@ func main() {
 	config.LoadConfig(exeDir)
 	config.LoadMCPJson()
 
-	sever.StartSever("127.0.0.1", "8081")
+	sever.StartSever("127.0.0.1", strconv.Itoa(config.Cfg.BackendPort))
 
 }

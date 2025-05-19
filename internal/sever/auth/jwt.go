@@ -35,7 +35,7 @@ func GenerateToken(username, password string) (string, string, error) {
 // GenerateAccessToken 生成短期访问令牌
 func GenerateAccessToken(username, password string) (string, error) {
 
-	expirationTime := time.Now().Add(24 * time.Hour)
+	expirationTime := time.Now().Add(7 * 24 * time.Hour)
 
 	claims := &Claims{
 		Username:  username,

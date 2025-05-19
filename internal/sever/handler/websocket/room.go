@@ -92,6 +92,8 @@ func (r *Room) startTalk(ctx context.Context, input map[string]any) error {
 		var errOut error
 		r.Agents.Range(func(k, v any) bool {
 			input["ai_name"] = k
+			input["msg_id"] = r.MsgID
+			r.MsgID++
 			if _, err := v.(*llm.ChatChain).Stream(input); err != nil {
 				errOut = err
 				return false
@@ -106,6 +108,7 @@ func (r *Room) startTalk(ctx context.Context, input map[string]any) error {
 		for {
 			preGenerateAmount := config.Cfg.PreGenerateAmount
 			if r.PlayDoneMsgID+int64(preGenerateAmount)+1 >= msgID {
+				logs.Logger.Debug("无需等待", zap.Int64("playDoneMsgID", r.PlayDoneMsgID), zap.Int64("preGenerateAmount", int64(preGenerateAmount)), zap.Int64("msgID", msgID))
 				return
 			}
 			select {
@@ -154,7 +157,7 @@ func (r *Room) startTalk(ctx context.Context, input map[string]any) error {
 
 		var errOut error
 		r.Agents.Range(func(k, v any) bool {
-			logs.Logger.Info("现在轮到", zap.String("agent", k.(string)))
+			logs.Logger.Info("现在轮到", zap.String("agent", k.(string)), zap.Int64("msgID", r.MsgID))
 			input["ai_name"] = k
 			input["msg_id"] = r.MsgID
 			r.MsgID++

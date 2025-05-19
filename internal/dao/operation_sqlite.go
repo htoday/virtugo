@@ -123,6 +123,38 @@ func GetSessionMessages(db *sql.DB, conversationID, limit int) ([]map[string]int
 	return messages, nil
 }
 
+// ChangeUsername 在一个事务中同时更新 用户 和 会话聊天 表中的 username
+func ChangeUsername(db *sql.DB, oldUsername, newUsername string) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	// 如果出错则回滚
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+		}
+	}()
+
+	// 更新用户表
+	if _, err = tx.Exec(
+		`UPDATE 用户 SET username = ? WHERE username = ?`,
+		newUsername, oldUsername,
+	); err != nil {
+		return err
+	}
+
+	// 更新会话表
+	if _, err = tx.Exec(
+		`UPDATE 会话聊天 SET username = ? WHERE username = ?`,
+		newUsername, oldUsername,
+	); err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
 // CreateEmptyMessage 创建一条内容为空的消息并返回其ID
 func CreateEmptyMessage(db *sql.DB, conversationID int, role string, senderName string) (int64, error) {
 	// 创建一条内容为空，token数为0的消息
