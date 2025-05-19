@@ -43,7 +43,7 @@ func main() {
 		logs.Logger.Info("✅ 模型文件存在，可以使用")
 	}
 
-	dao.InitChromemDB()
+	//dao.InitChromemDB()
 	dao.InitSqlite()
 	config.LoadConfig(exeDir)
 	config.LoadMCPJson()

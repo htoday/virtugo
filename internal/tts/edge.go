@@ -66,44 +66,8 @@ var rootCmd = &cobra.Command{
 			return err
 		}
 
-		//if len(writeMedia) > 0 {
-		//	writeMediaErr := os.WriteFile(writeMedia, audioData, 0644)
-		//	if writeMediaErr != nil {
-		//		return writeMediaErr
-		//	}
-		//	return nil
-		//} else {
-		//
-		//}
-
 		return nil
 	},
-}
-
-// Execute adds all child commands to the root command and sets flags appropriately.
-// This is called by main.main(). It only needs to happen once to the rootCmd.
-func Execute(text1 string, voice1 string) ([]byte, error) {
-	text = text1
-	voice = voice1
-	//writeMedia = path
-
-	err := rootCmd.Execute()
-
-	return audioData, err
-}
-
-func init() {
-	// bind flags
-	rootCmd.Flags().StringVarP(&text, "text", "t", "", "what TTS will say")
-	rootCmd.Flags().StringVarP(&file, "file", "f", "", "same as --text but read from file")
-	rootCmd.Flags().StringVarP(&voice, "voice", "v", "en-US-AriaNeural", "voice for TTS")
-	rootCmd.Flags().StringVar(&rate, "rate", "+0%", "set TTS rate")
-	rootCmd.Flags().StringVar(&volume, "volume", "+0%", "set TTS volume")
-	rootCmd.Flags().StringVar(&pitch, "pitch", "+0Hz", "set TTS pitch")
-	rootCmd.Flags().Float64Var(&wordsInCue, "words-in-cue", 10, "number of words in a subtitle cue")
-	rootCmd.Flags().StringVar(&writeMedia, "write-media", "", "send media output to file instead of stdout")
-	rootCmd.Flags().StringVar(&proxyURL, "proxy", "", "use a proxy for TTS and voice list")
-	rootCmd.Flags().BoolVar(&listVoices, "list-voices", false, "lists available voices and exits")
 }
 
 type EdgeTTS struct {
@@ -111,6 +75,9 @@ type EdgeTTS struct {
 }
 
 func NewEdgeTTS(voice string) *EdgeTTS {
+	if voice == "" {
+		voice = "zh-CN-XiaoyiNeural"
+	}
 	return &EdgeTTS{voice: voice}
 }
 
