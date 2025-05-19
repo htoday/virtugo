@@ -40,12 +40,14 @@ func (a *AudioHandler) AddAudioPiece(audioPiece []float32) {
 	if a.vad.IsSpeech() {
 		if !a.printed {
 			a.printed = true
-			interruptMsg := map[string]interface{}{
-				"type":    "interrupt",
-				"content": "interrupt",
+			if !config.Cfg.KeyWordIsEnable {
+				interruptMsg := map[string]interface{}{
+					"type":    "interrupt",
+					"content": "interrupt",
+				}
+				logs.Logger.Debug("发送打断消息")
+				a.conn.WriteJSON(interruptMsg)
 			}
-			logs.Logger.Debug("发送打断消息")
-			a.conn.WriteJSON(interruptMsg)
 		}
 	} else {
 		a.printed = false
@@ -70,6 +72,12 @@ func (a *AudioHandler) AddAudioPiece(audioPiece []float32) {
 					a.kwsSpotter.Reset(stream)
 					logs.Logger.Debug("关键词检测到", zap.String("result", result.Keyword))
 					is_detected = true
+					interruptMsg := map[string]interface{}{
+						"type":    "interrupt",
+						"content": "interrupt",
+					}
+					logs.Logger.Debug("发送打断消息")
+					a.conn.WriteJSON(interruptMsg)
 					break
 				}
 			}
