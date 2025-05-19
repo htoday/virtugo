@@ -115,7 +115,22 @@ func NewEdgeTTS(voice string) *EdgeTTS {
 }
 
 func (e *EdgeTTS) Generate(text string) (string, error) {
-	audioData, err := Execute(text, e.voice)
+
+	// 直接使用edge-tts-go库API，不通过命令行
+	conn, err := edge_tts.NewCommunicate(
+		text,
+		edge_tts.SetVoice(e.voice),
+		edge_tts.SetRate("+0%"),
+		edge_tts.SetVolume("+0%"),
+		edge_tts.SetPitch("+0Hz"),
+		edge_tts.SetReceiveTimeout(20),
+	)
+	if err != nil {
+		logs.Logger.Error("创建EdgeTTS连接失败", zap.Error(err))
+		return "", err
+	}
+
+	audioData, err := conn.Stream()
 	if err != nil {
 		logs.Logger.Error("TTS执行失败", zap.Error(err))
 		return "", nil
